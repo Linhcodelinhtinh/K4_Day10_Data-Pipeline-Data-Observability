@@ -10,7 +10,7 @@ This report presents a comparative evaluation of the RAG Pipeline across three d
 | Metric | Baseline | Corrupted | Repaired | Change (Corrupted vs Baseline) | Change (Repaired vs Corrupted) |
 |---|---|---|---|---|---|
 | **Retrieval Hit Rate** | 1.0000 | 0.6667 | 1.0000 | -0.3333 | +0.3333 |
-| **Mean Token F1** | 0.4257 | 0.2827 | 0.4257 | -0.1429 | +0.1429 |
+| **Mean Token F1** | 0.4257 | 0.2834 | 0.4257 | -0.1423 | +0.1423 |
 | **Judge Accuracy** | 0.3556 | 0.2444 | 0.3556 | -0.1111 | +0.1111 |
 | **Mean Judge Score (1-5)** | 2.38 | 1.93 | 2.38 | -0.44 | +0.44 |
 
