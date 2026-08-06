@@ -1,0 +1,119 @@
+# 1. Tổng quan luồng công việc (Data Flow & Handoff)
+
+```text
+Crossref API (TV 2)
+   └── Raw Data & Records (data/raw/)
+          └── Data Cleaning & Modeling (TV 3)
+                 └── Cleaned Dataset (data/clean/)
+                        ├── RAG Indexing & Agent (TV 4) ── ChromaDB (data/embeddings/)
+                        └── Test Set & Evaluation (TV 5) ── Evaluation Metrics (data/results/)
+                                └── Data Observability (TV 5) ── Quality & Reports (data/reports/)
+                                       ▲
+[Pipeline Integrator - TV 1] ──────────┴─ Điều phối Phase 1 Baseline & Phase 2 Corruption Flow
+```
+
+# 2. Bảng phân công chi tiết cho nhóm 5 người
+
+## Thành viên 1: Pipeline Integrator & Core Orchestration (Team Lead)
+
+**Vai trò:** Điều phối hệ thống, quản lý cấu hình, kết nối pipeline và chịu trách nhiệm chạy end-to-end.
+
+**Phạm vi công việc:**
+- Quản lý file cấu hình `config.py` và schema dùng chung `schemas.py`.
+- Ghép nối pipeline Baseline trong `phase1.py` và script `run_phase1.py`.
+- Ghép nối pipeline Corruption/Repair trong `corruption_flow.py` và script `run_corruption_flow.py`.
+- Đảm bảo luồng chạy không crash, quản lý môi trường `.env` và hỗ trợ giải quyết blocker cho các thành viên.
+
+**File phụ trách:**
+- `src/core/config.py`
+- `src/core/schemas.py`
+- `src/pipelines/phase1.py`
+- `src/pipelines/corruption_flow.py`
+- `script/run_phase1.py`
+- `script/run_corruption_flow.py`
+
+## Thành viên 2: Data Ingestion & Raw Lineage Owner
+
+**Vai trò:** Lấy dữ liệu từ API bên ngoài, lưu trữ dữ liệu thô và phục vụ khôi phục (repair).
+
+**Phạm vi công việc:**
+- Gọi Crossref API (`https://api.crossref.org/works`) lấy danh sách bài báo học thuật.
+- Xử lý lỗi kết nối, rate limit (429, 503) bằng retry/backoff.
+- Parse API payload thành danh sách `PaperRecord` chuẩn với `paper_id` ổn định.
+- Lưu raw response và raw parsed records vào thư mục `data/raw/` để có thể phục hồi dữ liệu khi repair.
+
+**File phụ trách:**
+- `src/ingestion/crossref.py`
+- `data/raw/`
+
+## Thành viên 3: Data Cleaning, Corruption & Data Repair Owner
+
+**Vai trò:** Xử lý và chuẩn hóa dữ liệu sạch, tạo dữ liệu lỗi có chủ đích và thực hiện quy trình Repair.
+
+**Phạm vi công việc:**
+- **Data Cleaning:** Loại bỏ bản ghi lỗi, chuẩn hóa `title`, `summary`, `authors`, `categories`, tính ngày `published` và số ngày tuổi `age_days`. Tạo trường `text_for_embedding`. Lưu kết quả vào `data/clean/`.
+- **Data Corruption:** Giả lập các loại lỗi dữ liệu trong `corrupt_clean_dataframe()`:
+  - Mất bản ghi mới nhất (latest record drop).
+  - Rỗng summary (blank summary).
+  - Gây nhiễu summary (text noise).
+  - Làm cũ ngày xuất bản (stale date).
+  - Trùng lặp dòng (duplicate rows).
+- **Data Repair:** Triển khai lại hàm khôi phục dữ liệu từ nguồn raw snapshot đã lưu.
+
+**File phụ trách:**
+- `src/ingestion/cleaning.py`
+- `src/ingestion/corruption.py`
+- `data/clean/`
+
+## Thành viên 4: RAG System & Agent Owner
+
+**Vai trò:** Triển khai hạ tầng Embedding, Vector Store ChromaDB, Multi-provider LLM và RAG Agent.
+
+**Phạm vi công việc:**
+- **Embedding & Vector Store:** Sử dụng `sentence-transformers/all-MiniLM-L6-v2` để sinh embedding và nạp vào ChromaDB collection. Đảm bảo tách biệt collection cho baseline, corrupted, và repaired.
+- **Multi-provider LLM:** Đảm bảo lớp trừu tượng LLM trong `llm.py` hỗ trợ Gemini, OpenAI, Anthropic, OpenRouter, Ollama.
+- **RAG Agent:** Phát triển agent trong `agent.py` tích hợp các tool: semantic search trong corpus và lookup theo `paper_id`/tiêu đề.
+
+**File phụ trách:**
+- `src/retrieval/embeddings.py`
+- `src/retrieval/index.py`
+- `src/retrieval/llm.py`
+- `src/retrieval/agent.py`
+- `src/retrieval/qa.py`
+- `data/embeddings/`
+
+## Thành viên 5: Evaluation & Data Observability Owner
+
+**Vai trò:** Xây dựng bộ kiểm thử (Test Set), tính chỉ số đo lường RAG, giám sát Data Quality/Freshness và lập báo cáo.
+
+**Phạm vi công việc:**
+- **Test Set Generation:** Xây dựng hàm `build_test_set()` tạo câu hỏi, ground truth và ground truth doc IDs từ dữ liệu sạch.
+- **Evaluation Metrics:** Tính toán các chỉ số: `retrieval_hit_rate`, `mean_token_f1`, `judge_accuracy`, `mean_judge_score`.
+- **Data Observability:** Xây dựng Data Quality Checks (kiểm tra rỗng, trùng, thiếu trường) và Freshness Monitoring (kiểm tra tính mới của dữ liệu).
+- **Reporting:** Xuất báo cáo Markdown `phase1_report.md` và báo cáo đối chiếu 3 trạng thái Baseline vs Corrupted vs Repaired trong `corruption_report.md`.
+
+**File phụ trách:**
+- `src/evaluation/testset.py`
+- `src/evaluation/metrics.py`
+- `src/evaluation/evaluator.py`
+- `src/observability/quality.py`
+- `src/observability/reporting.py`
+- `data/eval/`, `data/quality/`, `data/reports/`
+
+# 3. Timeline thực hiện theo Checkpoint (Phiên 4h)
+
+| Timeline | Checkpoint | Nhiệm vụ chính của Nhóm 5 người |
+|---|---|---|
+| 00:00 - 00:30 | CP0: Khởi động & Ingestion | • TV1: Chốt contract & `.env`.<br>• TV2: Fetch & parse Crossref raw API.<br>• TV3, TV4, TV5: Đọc code starter, thống nhất schema. |
+| 00:30 - 01:05 | CP1: Cleaning & Quality Gates | • TV3: Hoàn thiện `cleaning.py`.<br>• TV5: Tạo bộ quality check cơ bản.<br>• TV4: Kiểm tra schema dữ liệu sạch để làm index. |
+| 01:05 - 01:35 | CP2: Test Set & RAG Smoke Test | • TV5: Xây dựng `test_set.json`.<br>• TV4: Tạo Chroma collection `papers-baseline` & test agent.<br>• TV1: Chuẩn bị script ghép nối Phase 1. |
+| 01:35 - 02:00 | CP3: End-to-End Baseline | • Cả nhóm: Chạy `uv run python script/run_phase1.py`.<br>• TV5 & TV1: Kiểm tra `baseline_metrics.json` và `phase1_report.md`. |
+| 02:00 - 02:15 | CP4: Nghỉ giải lao (15m) | • Nghỉ ngơi & chuẩn bị kịch bản Corruption. |
+| 02:15 - 03:15 | CP5: Corruption & Impact Measurement | • TV3: Hoàn thiện `corruption.py`.<br>• TV4: Tạo Chroma collection `papers-corrupted`.<br>• TV1 & TV5: Chạy `run_corruption_flow.py`, đo mức giảm chỉ số RAG. |
+| 03:15 - 04:00 | CP6: Repair, Compare & Review | • TV3 & TV2: Repair dữ liệu từ raw snapshot.<br>• TV4: Build collection `papers-repaired`.<br>• TV5 & TV1: Chạy đánh giá lần 3, xuất `corruption_report.md` và nghiệm thu theo `Rubric.md`. |
+
+# 4. Các điểm lưu ý quan trọng khi triển khai
+
+- **Duy trì bộ Test Set cố định:** Khi so sánh 3 trạng thái (Baseline, Corrupted, Repaired), phải dùng chung bộ `test_set.json` của TV5 để phép đo công bằng.
+- **Không ghi đè Collection/Path:** Collection ChromaDB và path lưu file metrics của 3 trạng thái phải tách biệt (`papers-baseline`, `papers-corrupted`, `papers-repaired`).
+- **Bảo mật:** Không commit file `.env` hoặc API Key cá nhân lên Git Repository.
