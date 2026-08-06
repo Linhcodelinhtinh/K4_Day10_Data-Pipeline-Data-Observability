@@ -79,6 +79,7 @@ def main() -> None:
         clean_df,
         settings=settings,
         embeddings_output_path=settings.paths.embeddings_json,
+        reset=True,
     )
     logger.info(f"Index built successfully with {len(index.documents)} documents.")
 
@@ -137,4 +138,3 @@ def main() -> None:
         logger.warning(f"Observability / Reporting fallback: {e}")
 
     logger.info("Phase 1 baseline pipeline finished successfully!")
-

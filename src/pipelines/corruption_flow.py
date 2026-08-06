@@ -21,10 +21,11 @@ def main() -> None:
     logger.info("Starting Corruption Flow...")
 
     # 1. Load clean baseline dataframe
-    if settings.paths.clean_csv.exists():
-        clean_df = pd.read_csv(settings.paths.clean_csv)
-    elif settings.paths.clean_json.exists():
+    # Prefer JSON because it preserves list-valued authors/categories for corruption.
+    if settings.paths.clean_json.exists():
         clean_df = pd.DataFrame(read_json(settings.paths.clean_json))
+    elif settings.paths.clean_csv.exists():
+        clean_df = pd.read_csv(settings.paths.clean_csv)
     else:
         logger.warning("Baseline clean dataset chua ton tai. Vui long chay Phase 1 truuoc.")
         return
@@ -57,6 +58,7 @@ def main() -> None:
         corrupted_df,
         settings=settings,
         embeddings_output_path=settings.paths.corrupted_embeddings_json,
+        reset=True,
     )
     logger.info(f"Corrupted index built with {len(corrupted_index.documents)} documents.")
 
@@ -126,6 +128,7 @@ def main() -> None:
         repaired_df,
         settings=settings,
         embeddings_output_path=settings.paths.repaired_embeddings_json,
+        reset=True,
     )
     logger.info(f"Repaired index built with {len(repaired_index.documents)} documents.")
 
@@ -184,4 +187,3 @@ def main() -> None:
         logger.warning(f"Comparison report fallback: {e}")
 
     logger.info("Corruption Flow finished successfully!")
-
