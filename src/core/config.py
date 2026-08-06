@@ -171,3 +171,22 @@ def require_llm_credentials(settings: Settings) -> None:
     raise RuntimeError(
         "Unsupported LLM_PROVIDER. Expected one of: openai, gemini, anthropic, openrouter, ollama, custom."
     )
+
+
+def ensure_directories(settings: Settings) -> None:
+    """Ensure all required output directories exist."""
+    paths = settings.paths
+    directories = [
+        paths.raw_api_response.parent,
+        paths.clean_csv.parent,
+        paths.chroma_dir,
+        paths.embeddings_json.parent,
+        paths.eval_testset.parent,
+        paths.baseline_metrics.parent,
+        paths.quality_dir,
+        paths.gx_dir,
+        paths.baseline_report.parent,
+    ]
+    for directory in directories:
+        directory.mkdir(parents=True, exist_ok=True)
+

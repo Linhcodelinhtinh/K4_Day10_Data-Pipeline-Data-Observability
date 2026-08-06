@@ -1,4 +1,11 @@
-from .config import Paths, Settings, load_settings, normalized_provider, require_llm_credentials
+from .config import (
+    Paths,
+    Settings,
+    ensure_directories,
+    load_settings,
+    normalized_provider,
+    require_llm_credentials,
+)
 from .utils import (
     compact_join,
     ensure_parent,
@@ -11,3 +18,4 @@ from .utils import (
     write_json,
     write_text,
 )
+
