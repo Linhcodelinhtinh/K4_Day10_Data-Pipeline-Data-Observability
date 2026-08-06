@@ -1,0 +1,18 @@
+{
+  "report_name": "quality_baseline",
+  "total_rows": 24,
+  "checks": {
+    "row_count_valid": true,
+    "paper_id_null_count": 0,
+    "paper_id_duplicate_count": 0,
+    "paper_id_valid": true,
+    "title_null_count": 0,
+    "title_empty_count": 0,
+    "title_valid": true,
+    "summary_null_count": 0,
+    "summary_short_count": 0,
+    "summary_valid": true,
+    "stale_rows_count": 0
+  },
+  "passed": true
+}
