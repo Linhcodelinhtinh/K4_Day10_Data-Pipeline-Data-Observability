@@ -24,4 +24,7 @@ def build_test_set(df: pd.DataFrame, output_path) -> list[dict[str, Any]]:
        - ground_truth_doc_ids
     5. Ghi file JSON vao output_path.
     """
+    test_set: list[dict[str, Any]] = []
+    question_counter = 1
+   
     raise NotImplementedError("Student task: implement test set builder.")
