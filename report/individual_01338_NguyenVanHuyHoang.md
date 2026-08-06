@@ -7,7 +7,7 @@
 | Họ và tên | Nguyễn Văn Huy Hoàng |
 | MSSV | 2A202601338 |
 | Khóa/Lớp | K4 |
-| Tên nhóm | Team_5_Angry_Man |
+| Tên nhóm | 5AngryMen |
 | Vai trò chính | Thành viên 4 — RAG System & Agent Owner |
 | Repository | https://github.com/Linhcodelinhtinh/K4_Day10_Data-Pipeline-Data-Observability |
 | Ngày hoàn thành | 2026-08-06 |
