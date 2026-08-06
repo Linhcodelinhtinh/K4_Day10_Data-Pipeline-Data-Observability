@@ -2,8 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from langchain.agents import create_agent
-from langchain.tools import tool
+try:
+    from langchain.agents import create_agent
+    from langchain.tools import tool
+    HAS_LANGCHAIN = True
+except ImportError:
+    HAS_LANGCHAIN = False
+    create_agent = None
+    tool = lambda fn: fn
+
 
 from core.config import Settings
 from retrieval.index import LocalEmbeddingIndex
