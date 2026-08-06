@@ -1,0 +1,11 @@
+{
+  "corruption_type": "duplicate_rows",
+  "total_rows": 28,
+  "affected_count": 4,
+  "affected_paper_ids": [
+    "10.2118/234689-pa",
+    "10.1007/s10278-026-02086-9",
+    "10.21203/rs.3.rs-10178277/v1",
+    "10.2196/preprints.106157"
+  ]
+}
