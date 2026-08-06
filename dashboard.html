@@ -1,0 +1,779 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Data Observability & RAG Pipeline Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root {
+      --bg-dark: #070a12;
+      --bg-card: rgba(17, 24, 39, 0.85);
+      --bg-card-hover: rgba(30, 41, 59, 0.9);
+      --bg-inner: #0b1120;
+      --primary: #3b82f6;
+      --primary-glow: rgba(59, 130, 246, 0.35);
+      --accent: #10b981;
+      --accent-glow: rgba(16, 185, 129, 0.35);
+      --warning: #f59e0b;
+      --warning-glow: rgba(245, 158, 11, 0.35);
+      --danger: #ef4444;
+      --danger-glow: rgba(239, 68, 68, 0.35);
+      --purple: #8b5cf6;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-bright: rgba(96, 165, 250, 0.3);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      line-height: 1.5;
+      background-image: 
+        radial-gradient(circle at 15% 15%, rgba(59, 130, 246, 0.08) 0%, transparent 40%),
+        radial-gradient(circle at 85% 85%, rgba(168, 85, 247, 0.08) 0%, transparent 40%);
+    }
+
+    /* Header */
+    header {
+      background: rgba(11, 17, 32, 0.9);
+      backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      padding: 14px 28px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .brand { display: flex; align-items: center; gap: 12px; }
+    .brand-icon {
+      width: 40px; height: 40px;
+      background: linear-gradient(135deg, var(--primary), #8b5cf6);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 800; color: #fff;
+      box-shadow: 0 0 16px var(--primary-glow);
+    }
+    .brand-title {
+      font-weight: 800; font-size: 17px;
+      background: linear-gradient(135deg, #60a5fa, #c084fc);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+    .brand-sub { font-size: 12px; color: var(--text-muted); }
+
+    .header-badges { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .status-badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: 700;
+      border: 1px solid transparent; transition: all 0.2s ease;
+    }
+    .badge-success { background: rgba(16, 185, 129, 0.15); color: #6ee7b7; border-color: rgba(16, 185, 129, 0.4); }
+    .badge-warning { background: rgba(245, 158, 11, 0.15); color: #fde68a; border-color: rgba(245, 158, 11, 0.4); }
+    .badge-danger { background: rgba(239, 68, 68, 0.15); color: #fca5a5; border-color: rgba(239, 68, 68, 0.4); }
+    .badge-info { background: rgba(59, 130, 246, 0.15); color: #93c5fd; border-color: rgba(59, 130, 246, 0.4); }
+
+    .pulse-dot {
+      width: 8px; height: 8px; border-radius: 50%; background: currentColor;
+      box-shadow: 0 0 8px currentColor; animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+
+    /* Main Container */
+    main {
+      flex: 1;
+      max-width: 1440px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* KPI Summary Cards Grid */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+      gap: 16px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 12px;
+      transition: all 0.25s ease;
+      position: relative;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .kpi-card:hover {
+      border-color: var(--border-bright);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(59, 130, 246, 0.15);
+    }
+    .kpi-card::before {
+      content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--purple));
+    }
+    .kpi-card.success::before { background: linear-gradient(90deg, var(--accent), #34d399); }
+    .kpi-card.warning::before { background: linear-gradient(90deg, var(--warning), #fbbf24); }
+
+    .kpi-title { font-size: 12px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .kpi-value-row { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+    .kpi-value { font-size: 32px; font-weight: 800; color: #fff; font-family: 'JetBrains Mono', monospace; }
+    .kpi-delta { font-size: 12px; font-weight: 700; padding: 2px 8px; border-radius: 12px; }
+    .delta-up { background: rgba(16, 185, 129, 0.2); color: #34d399; }
+    .delta-down { background: rgba(239, 68, 68, 0.2); color: #f87171; }
+
+    .kpi-sub-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding-top: 10px;
+      border-top: 1px solid var(--border-color);
+      font-size: 11px;
+    }
+    .sub-item { display: flex; flex-direction: column; gap: 2px; }
+    .sub-label { color: var(--text-muted); font-size: 10px; }
+    .sub-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; }
+
+    /* Navigation Tabs */
+    .tabs-nav {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 2px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 10px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border-radius: 8px 8px 0 0;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      border-bottom: 2px solid transparent;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255, 255, 255, 0.03); }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+      background: rgba(59, 130, 246, 0.1);
+    }
+
+    /* Tab Content Panels */
+    .tab-panel { display: none; flex-direction: column; gap: 20px; }
+    .tab-panel.active { display: flex; }
+
+    /* Charts Section Grid */
+    .charts-grid {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      gap: 20px;
+    }
+    @media (max-width: 1024px) { .charts-grid { grid-template-columns: 1fr; } }
+
+    .chart-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    .chart-header { display: flex; justify-content: space-between; align-items: center; }
+    .chart-title { font-weight: 800; font-size: 15px; color: #fff; display: flex; align-items: center; gap: 8px; }
+    .chart-container { position: relative; width: 100%; height: 320px; }
+
+    /* Data Tables */
+    .table-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      overflow-x: auto;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th {
+      background: var(--bg-inner);
+      color: var(--text-muted);
+      font-weight: 700;
+      padding: 12px 16px;
+      text-transform: uppercase;
+      font-size: 11px;
+      letter-spacing: 0.5px;
+      border-bottom: 1px solid var(--border-color);
+    }
+    td { padding: 12px 16px; border-bottom: 1px solid var(--border-color); color: #e2e8f0; }
+    tr:last-child td { border-bottom: none; }
+    tr:hover td { background: rgba(255, 255, 255, 0.02); }
+
+    /* Quality Check Grid */
+    .quality-checks-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 16px;
+    }
+    .qc-box {
+      background: var(--bg-inner);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .qc-head { display: flex; justify-content: space-between; align-items: center; }
+    .qc-title { font-weight: 700; font-size: 13px; color: #fff; }
+    .qc-row { display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted); }
+    .qc-val { font-weight: 700; font-family: 'JetBrains Mono', monospace; color: #fff; }
+
+    /* Code Snippets & Logs */
+    .log-box {
+      background: #050811;
+      border: 1px solid #1e293b;
+      border-radius: 10px;
+      padding: 14px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      color: #38bdf8;
+      max-height: 240px;
+      overflow-y: auto;
+      line-height: 1.6;
+    }
+
+    footer {
+      border-top: 1px solid var(--border-color);
+      padding: 16px 28px;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-muted);
+      background: rgba(11, 17, 32, 0.8);
+      margin-top: auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="brand">
+      <div class="brand-icon">◈</div>
+      <div>
+        <div class="brand-title">DAY 10 · DATA OBSERVABILITY & PIPELINE DASHBOARD</div>
+        <div class="brand-sub">RAG Evaluation, Data Quality Monitoring & Corruption Impact Analysis</div>
+      </div>
+    </div>
+    <div class="header-badges">
+      <span class="status-badge badge-success"><span class="pulse-dot"></span> Pipeline: HEALTHY</span>
+      <span class="status-badge badge-info">Raw Records: 24</span>
+      <span class="status-badge badge-info">Test Samples: 60</span>
+      <span class="status-badge badge-success">3 Collections Active</span>
+    </div>
+  </header>
+
+  <main>
+
+    <!-- Top KPI Cards (3-State Comparison) -->
+    <section class="kpi-grid">
+      
+      <!-- KPI 1: Retrieval Hit Rate -->
+      <div class="kpi-card success">
+        <div class="kpi-title">Retrieval Hit Rate</div>
+        <div class="kpi-value-row">
+          <span class="kpi-value">100.0%</span>
+          <span class="kpi-delta delta-up">Recovered 100%</span>
+        </div>
+        <div class="kpi-sub-row">
+          <div class="sub-item">
+            <span class="sub-label">Baseline</span>
+            <span class="sub-val" style="color: #60a5fa">100.0%</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Corrupted</span>
+            <span class="sub-val" style="color: #f87171">66.7%</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Repaired</span>
+            <span class="sub-val" style="color: #34d399">100.0%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI 2: Mean Token F1 -->
+      <div class="kpi-card">
+        <div class="kpi-title">Mean Token F1 Score</div>
+        <div class="kpi-value-row">
+          <span class="kpi-value">42.57%</span>
+          <span class="kpi-delta delta-up">+14.30% vs Corrupt</span>
+        </div>
+        <div class="kpi-sub-row">
+          <div class="sub-item">
+            <span class="sub-label">Baseline</span>
+            <span class="sub-val" style="color: #60a5fa">42.57%</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Corrupted</span>
+            <span class="sub-val" style="color: #f87171">28.27%</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Repaired</span>
+            <span class="sub-val" style="color: #34d399">42.57%</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI 3: LLM Judge Score -->
+      <div class="kpi-card warning">
+        <div class="kpi-title">LLM Judge Score (1-5)</div>
+        <div class="kpi-value-row">
+          <span class="kpi-value">2.38 <span style="font-size:16px;color:var(--text-muted)">/ 5.0</span></span>
+          <span class="kpi-delta delta-up">+0.45 vs Corrupt</span>
+        </div>
+        <div class="kpi-sub-row">
+          <div class="sub-item">
+            <span class="sub-label">Baseline</span>
+            <span class="sub-val" style="color: #60a5fa">2.38</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Corrupted</span>
+            <span class="sub-val" style="color: #f87171">1.93</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Repaired</span>
+            <span class="sub-val" style="color: #34d399">2.38</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- KPI 4: Data Quality Gate Status -->
+      <div class="kpi-card success">
+        <div class="kpi-title">Data Quality Gate</div>
+        <div class="kpi-value-row">
+          <span class="kpi-value" style="color: #34d399">PASSED</span>
+          <span class="status-badge badge-success">Fresh</span>
+        </div>
+        <div class="kpi-sub-row">
+          <div class="sub-item">
+            <span class="sub-label">Baseline</span>
+            <span class="sub-val" style="color: #34d399">PASS</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Corrupted</span>
+            <span class="sub-val" style="color: #f87171">FAIL</span>
+          </div>
+          <div class="sub-item">
+            <span class="sub-label">Repaired</span>
+            <span class="sub-val" style="color: #34d399">PASS</span>
+          </div>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-nav">
+      <button class="tab-btn active" onclick="switchTab(0)">📊 3-State Performance Comparison</button>
+      <button class="tab-btn" onclick="switchTab(1)">🔍 Data Observability & Quality Gates</button>
+      <button class="tab-btn" onclick="switchTab(2)">⚠️ Corruption & Repair Analysis</button>
+      <button class="tab-btn" onclick="switchTab(3)">💬 Sample QA Inspector</button>
+    </div>
+
+    <!-- TAB 1: 3-State Comparison -->
+    <div class="tab-panel active" id="tab-0">
+      <div class="charts-grid">
+        <!-- Bar Chart: Performance Metrics -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">📈 RAG Metrics Across Data States (Baseline vs Corrupted vs Repaired)</div>
+            <span class="status-badge badge-info">60 Test Questions</span>
+          </div>
+          <div class="chart-container">
+            <canvas id="comparisonBarChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Radar Chart: Multi-Dimensional Metrics -->
+        <div class="chart-card">
+          <div class="chart-header">
+            <div class="chart-title">🕸️ Pipeline Quality Profile</div>
+          </div>
+          <div class="chart-container">
+            <canvas id="radarChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Comparison Data Table -->
+      <div class="table-card">
+        <div style="margin-bottom: 14px; font-weight:800; font-size:15px; color:#fff">
+          📋 Summary Metrics Table
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Data State</th>
+              <th>Total Samples</th>
+              <th>Retrieval Hit Rate</th>
+              <th>Mean Token F1</th>
+              <th>Judge Accuracy</th>
+              <th>Mean Judge Score</th>
+              <th>Quality Gate</th>
+              <th>Freshness</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><b style="color:#60a5fa">1. Baseline (Clean Data)</b></td>
+              <td>60</td>
+              <td><b style="color:#34d399">100.00%</b></td>
+              <td>42.57%</td>
+              <td>35.56%</td>
+              <td>2.38 / 5.0</td>
+              <td><span class="status-badge badge-success">PASSED</span></td>
+              <td><span class="status-badge badge-success">FRESH</span></td>
+            </tr>
+            <tr>
+              <td><b style="color:#f87171">2. Corrupted (Data Noise)</b></td>
+              <td>60</td>
+              <td><b style="color:#f87171">66.67%</b> (-33.33%)</td>
+              <td><b style="color:#f87171">28.27%</b> (-14.30%)</td>
+              <td>24.44%</td>
+              <td>1.93 / 5.0</td>
+              <td><span class="status-badge badge-danger">FAILED</span></td>
+              <td><span class="status-badge badge-warning">STALE</span></td>
+            </tr>
+            <tr>
+              <td><b style="color:#34d399">3. Repaired (Snapshot Restored)</b></td>
+              <td>60</td>
+              <td><b style="color:#34d399">100.00%</b> (+33.33%)</td>
+              <td><b style="color:#34d399">42.57%</b> (+14.30%)</td>
+              <td>35.56%</td>
+              <td>2.38 / 5.0</td>
+              <td><span class="status-badge badge-success">PASSED</span></td>
+              <td><span class="status-badge badge-success">FRESH</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: Data Observability & Quality Gates -->
+    <div class="tab-panel" id="tab-1">
+      <div class="quality-checks-grid">
+        
+        <!-- Quality Check Card 1: Row Count & Paper ID -->
+        <div class="qc-box">
+          <div class="qc-head">
+            <span class="qc-title">1. Paper ID & Primary Keys</span>
+            <span class="status-badge badge-success">Passed</span>
+          </div>
+          <div class="qc-row"><span>Null Paper IDs:</span><span class="qc-val">0</span></div>
+          <div class="qc-row"><span>Duplicate Paper IDs:</span><span class="qc-val">0</span></div>
+          <div class="qc-row"><span>Baseline Rows:</span><span class="qc-val">24</span></div>
+          <div class="qc-row"><span>Corrupted Duplicate Count:</span><span class="qc-val" style="color:#f87171">3 (Detected)</span></div>
+        </div>
+
+        <!-- Quality Check Card 2: Titles & Summary Length -->
+        <div class="qc-box">
+          <div class="qc-head">
+            <span class="qc-title">2. Title & Summary Quality</span>
+            <span class="status-badge badge-success">Passed</span>
+          </div>
+          <div class="qc-row"><span>Null Titles:</span><span class="qc-val">0</span></div>
+          <div class="qc-row"><span>Empty Titles:</span><span class="qc-val">0</span></div>
+          <div class="qc-row"><span>Null Summaries:</span><span class="qc-val">0</span></div>
+          <div class="qc-row"><span>Corrupted Blank Summaries:</span><span class="qc-val" style="color:#f87171">2 (Detected)</span></div>
+        </div>
+
+        <!-- Quality Check Card 3: Freshness Monitoring -->
+        <div class="qc-box">
+          <div class="qc-head">
+            <span class="qc-title">3. Freshness & Staleness</span>
+            <span class="status-badge badge-success">Fresh</span>
+          </div>
+          <div class="qc-row"><span>Freshness Threshold:</span><span class="qc-val">180 Days</span></div>
+          <div class="qc-row"><span>Latest Published Date:</span><span class="qc-val">2026-08-01</span></div>
+          <div class="qc-row"><span>Stale Rows (Baseline):</span><span class="qc-val" style="color:#34d399">0</span></div>
+          <div class="qc-row"><span>Stale Rows (Corrupted):</span><span class="qc-val" style="color:#f87171">2 (Detected)</span></div>
+        </div>
+
+      </div>
+
+      <!-- Observability Log Terminal -->
+      <div class="chart-card">
+        <div class="chart-title">📡 Live Data Observability Log Output</div>
+        <div class="log-box">
+[INFO] Running Data Quality Checks for 'quality_baseline'...
+[PASS] Check row_count_valid: 24 rows (> 0)
+[PASS] Check paper_id_valid: Null=0, Duplicates=0
+[PASS] Check title_valid: Null=0, Empty=0
+[PASS] Check summary_valid: Null=0, Short=0 (< 20 chars)
+[PASS] Check freshness_gate: 0 stale rows found (Threshold: 180 days). Latest publication: 2026-08-01.
+[INFO] Quality Gate Result: PASSED 🟢
+
+[WARNING] Running Data Quality Checks for 'quality_corrupted'...
+[FAIL] Check paper_id_duplicate_count: 3 duplicates found!
+[FAIL] Check summary_short_count: 2 empty/short summaries found!
+[FAIL] Check stale_rows_count: 2 stale rows found (> 180 days old).
+[ALERT] Quality Gate Result: FAILED 🔴
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB 3: Corruption & Repair Breakdown -->
+    <div class="tab-panel" id="tab-2">
+      <div class="table-card">
+        <div style="margin-bottom: 14px; font-weight:800; font-size:15px; color:#fff">
+          💥 10 Controlled Data Corruption Scenarios & Repair Strategy
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Corruption Scenario</th>
+              <th>Target Data Impact</th>
+              <th>Observed Impact on RAG Pipeline</th>
+              <th>Data Repair Recovery Strategy</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1</td>
+              <td><b>Drop Latest Records</b></td>
+              <td>Drops top 20% newest papers</td>
+              <td>Retrieval Hit Rate drops by 33.3% for queries about new research</td>
+              <td>Reload raw JSON snapshot and re-run cleaning pipeline</td>
+            </tr>
+            <tr>
+              <td>2</td>
+              <td><b>Blank Summary</b></td>
+              <td>Sets summary to empty string</td>
+              <td>Agent answers "Insufficient evidence in the indexed corpus"</td>
+              <td>Restore summary from raw Crossref abstract field</td>
+            </tr>
+            <tr>
+              <td>3</td>
+              <td><b>Inject XML/HTML Noise</b></td>
+              <td>Inserts HTML tags & garbage tokens</td>
+              <td>Decreases embedding similarity score and distorts LLM answer F1</td>
+              <td>Strip XML/HTML tags with regex cleaner in `cleaning.py`</td>
+            </tr>
+            <tr>
+              <td>4</td>
+              <td><b>Inject Retraction Statement</b></td>
+              <td>Adds [RETRACTED/INVALID] banner</td>
+              <td>LLM Judge flags answer as inaccurate due to contradictory text</td>
+              <td>Restore true abstract text from raw snapshot</td>
+            </tr>
+            <tr>
+              <td>5</td>
+              <td><b>Stale Date Injection</b></td>
+              <td>Sets published date to `2010-01-01`</td>
+              <td>Freshness Gate fails and flags dataset as STALE</td>
+              <td>Re-parse published date from raw Crossref date-parts</td>
+            </tr>
+            <tr>
+              <td>6</td>
+              <td><b>Duplicate Rows</b></td>
+              <td>Duplicates 15% of records</td>
+              <td>Vector search returns redundant copies, reducing context diversity</td>
+              <td>Apply `df.drop_duplicates(subset=['paper_id'])` in cleaning</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: Sample QA Inspector -->
+    <div class="tab-panel" id="tab-3">
+      <div class="table-card">
+        <div style="margin-bottom: 14px; font-weight:800; font-size:15px; color:#fff">
+          💬 Sample Question & Answer Evaluation Inspector
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Sample ID</th>
+              <th>Type</th>
+              <th>Question</th>
+              <th>Target Paper DOI</th>
+              <th>Retrieved Doc Hit</th>
+              <th>Token F1</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td><code>q_001</code></td>
+              <td><span class="status-badge badge-info">summary</span></td>
+              <td>What is the summary or main finding of the paper 'SafeRAG'?</td>
+              <td><code>10.2118/234689-pa</code></td>
+              <td><span class="status-badge badge-success">HIT (Rank 1)</span></td>
+              <td><b style="color:#34d399">100.0%</b></td>
+            </tr>
+            <tr>
+              <td><code>q_002</code></td>
+              <td><span class="status-badge badge-info">authors</span></td>
+              <td>Who are the authors of the paper 'SafeRAG'?</td>
+              <td><code>10.2118/234689-pa</code></td>
+              <td><span class="status-badge badge-success">HIT (Rank 1)</span></td>
+              <td><b style="color:#34d399">100.0%</b></td>
+            </tr>
+            <tr>
+              <td><code>q_003</code></td>
+              <td><span class="status-badge badge-info">date</span></td>
+              <td>When was the paper 'SafeRAG' published?</td>
+              <td><code>10.2118/234689-pa</code></td>
+              <td><span class="status-badge badge-success">HIT (Rank 1)</span></td>
+              <td><b style="color:#34d399">100.0%</b></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </main>
+
+  <footer>
+    Day 10 Data Pipeline & Data Observability Dashboard · Built for RAG Quality Monitoring
+  </footer>
+
+  <script>
+    // Tab Switching Logic
+    function switchTab(index) {
+      document.querySelectorAll('.tab-btn').forEach((btn, i) => {
+        btn.classList.toggle('active', i === index);
+      });
+      document.querySelectorAll('.tab-panel').forEach((panel, i) => {
+        panel.classList.toggle('active', i === index);
+      });
+    }
+
+    // Chart.js Configuration
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. Bar Chart: Performance Comparison
+      const barCtx = document.getElementById('comparisonBarChart').getContext('2d');
+      new Chart(barCtx, {
+        type: 'bar',
+        data: {
+          labels: ['Retrieval Hit Rate (%)', 'Mean Token F1 (%)', 'Judge Accuracy (%)', 'Judge Score (x20%)'],
+          datasets: [
+            {
+              label: '1. Baseline (Clean)',
+              data: [100.0, 42.57, 35.56, 47.56], // 2.38 * 20 = 47.56
+              backgroundColor: 'rgba(59, 130, 246, 0.85)',
+              borderColor: '#60a5fa',
+              borderWidth: 1.5,
+              borderRadius: 6,
+            },
+            {
+              label: '2. Corrupted (Data Noise)',
+              data: [66.67, 28.27, 24.44, 38.66], // 1.93 * 20 = 38.66
+              backgroundColor: 'rgba(239, 68, 68, 0.85)',
+              borderColor: '#f87171',
+              borderWidth: 1.5,
+              borderRadius: 6,
+            },
+            {
+              label: '3. Repaired (Restored)',
+              data: [100.0, 42.57, 35.56, 47.56],
+              backgroundColor: 'rgba(16, 185, 129, 0.85)',
+              borderColor: '#34d399',
+              borderWidth: 1.5,
+              borderRadius: 6,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { labels: { color: '#94a3b8', font: { family: 'Inter', weight: 600 } } },
+            tooltip: { mode: 'index', intersect: false }
+          },
+          scales: {
+            x: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#cbd5e1' } },
+            y: { grid: { color: 'rgba(255, 255, 255, 0.05)' }, ticks: { color: '#cbd5e1' }, max: 105 }
+          }
+        }
+      });
+
+      // 2. Radar Chart: Multi-Dimensional Pipeline Quality
+      const radarCtx = document.getElementById('radarChart').getContext('2d');
+      new Chart(radarCtx, {
+        type: 'radar',
+        data: {
+          labels: ['Retrieval Hit', 'Token F1', 'Judge Score', 'Data Quality', 'Freshness'],
+          datasets: [
+            {
+              label: 'Baseline',
+              data: [100, 85, 80, 100, 100],
+              borderColor: '#60a5fa',
+              backgroundColor: 'rgba(96, 165, 250, 0.2)',
+              borderWidth: 2,
+            },
+            {
+              label: 'Corrupted',
+              data: [66.7, 56.5, 64.3, 0, 0],
+              borderColor: '#f87171',
+              backgroundColor: 'rgba(248, 113, 113, 0.2)',
+              borderWidth: 2,
+            },
+            {
+              label: 'Repaired',
+              data: [100, 85, 80, 100, 100],
+              borderColor: '#34d399',
+              backgroundColor: 'rgba(52, 211, 153, 0.2)',
+              borderWidth: 2,
+            }
+          ]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { labels: { color: '#94a3b8', font: { family: 'Inter', weight: 600 } } } },
+          scales: {
+            r: {
+              angleLines: { color: 'rgba(255, 255, 255, 0.1)' },
+              grid: { color: 'rgba(255, 255, 255, 0.1)' },
+              pointLabels: { color: '#cbd5e1', font: { size: 11, weight: 'bold' } },
+              ticks: { display: false, max: 100 }
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+</html>

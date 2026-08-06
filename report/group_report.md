@@ -6,10 +6,9 @@
 
 | Thông tin         | Nội dung                  |
 | ------------------ | -------------------------- |
-| Khóa/Lớp         | [K3 hoặc K4]              |
-| Tên nhóm         | [Tên hoặc mã nhóm]     |
-| Repository         | [Đường dẫn repository] |
-| Ngày hoàn thành | [YYYY-MM-DD]               |
+| Khóa/Lớp         | [K4]              |
+| Tên nhóm         | [5 Angry Man]     |
+| Ngày hoàn thành | [08/06/2026]               |
 
 ### Thành viên và phân công
 
